@@ -12,16 +12,20 @@ import RaviPhone from './RaviPhone.jsx'
 import ExpertPhone from './ExpertPhone.jsx'
 import OfficerPhone from './OfficerPhone.jsx'
 import Console from './Console.jsx'
+import AdminConsole from './AdminConsole.jsx'
+import HospitalPhone from './HospitalPhone.jsx'
+import PriyaPhone from './PriyaPhone.jsx'
+import MeenaPhone from './MeenaPhone.jsx'
 import { Icon, HintTarget, Logo } from './ui.jsx'
 import Spotlight from './Spotlight.jsx'
-import { PHASES, STORY, STAGES, ROLES, WATER, after } from './flow.js'
+import { PHASES, STORY, STAGES, ROLES, CAST, WATER, after } from './flow.js'
 
-const WIDTH = { lakshmi: 300, ravi: 300, suresh: 300, officer: 300, console: 840 }
+const WIDTH = { lakshmi: 300, ravi: 300, suresh: 300, officer: 300, hospital: 300, priya: 300, meena: 300, console: 840, admin: 840 }
 const GAP = 24
 const ROW_W = 1536
 
 // Autoplay: how long each step stays up before moving on.
-const AUTO_MS = { report: 4200, identify: 5200, rank: 5600, warn: 4200, onsite: 4600, stabilize: 6400, rebuild: 7000, validate: 6000, train: 5200, authorize: 4600, restart: 7600, flowing: 4600, share: 5200 }
+const AUTO_MS = { report: 4200, signals: 5600, identify: 5200, rank: 6000, warn: 5200, access: 6800, onsite: 4600, stabilize: 6400, rebuild: 7000, validate: 6000, train: 5200, authorize: 4600, restart: 7600, chlorine: 6800, licence: 5200, dose: 6400, flowing: 4800, backup: 6000, share: 5600, audit: 6400 }
 
 function useFit() {
   const [s, setS] = useState(1)
@@ -82,9 +86,11 @@ export default function App() {
     seen.current = { ...seen.current, prev: screens, phase }
   }
 
+  // In two-screen steps only the screen holding the next tap gets the coach-mark.
+  const lead = (s) => !ph.lead || ph.lead === s
   const devW = screens.reduce((w, s) => w + WIDTH[s], 0) + GAP * (screens.length - 1)
   const sceneW = ROW_W - devW - 32
-  const shared = { phase, go, hint: true, auto }
+  const shared = { phase, go, auto }
 
   return (
     <div className="viewport">
@@ -97,9 +103,10 @@ export default function App() {
               <div className="display" style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1, color: 'var(--blue-900)' }}>
                 Hand<span style={{ color: 'var(--blue)' }}>off</span>
               </div>
-              <div style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 4 }}>One silent pump, no expert left on site</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 4 }}>One silent pump, nine people, five stages</div>
             </div>
             <div style={{ flex: 1 }} />
+            <CastStrip active={screens} />
             <StagePills current={ph.stage} />
             <div style={{ position: 'relative', background: '#fff', boxShadow: 'inset 0 0 0 1px var(--line)', borderRadius: 14, padding: '6px 16px', minWidth: 170 }}>
               <div className="eyebrow" style={{ fontSize: 9.5 }}>Day after the Snap</div>
@@ -112,7 +119,7 @@ export default function App() {
 
         <div style={{ position: 'absolute', left: 32, right: 32, top: 108, height: 648, display: 'flex', justifyContent: 'center', gap: 32 }}>
           <motion.div ref={sceneRef} animate={{ width: sceneW }} initial={false} transition={{ type: 'spring', stiffness: 160, damping: 26 }} style={{ minWidth: 0, height: '100%' }}>
-            <Scene phase={phase} caption={ph.scene} />
+            <Scene phase={phase} caption={ph.scene} data={ph.data} />
           </motion.div>
           <div style={{ display: 'flex', gap: GAP, alignItems: 'center', flex: 'none' }}>
             {screens.map((s) => (
@@ -120,11 +127,15 @@ export default function App() {
                 transition={{ type: 'spring', stiffness: 220, damping: 26 }} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <DeviceLabel role={s} />
                 <div style={{ borderRadius: s === 'console' ? 24 : 44, boxShadow: '0 0 0 3px #fff, 0 0 0 4.5px var(--blue-300), 0 30px 60px -28px rgba(24,52,79,.55)' }}>
-                  {s === 'lakshmi' && <LakshmiPhone {...shared} />}
-                  {s === 'ravi' && <RaviPhone {...shared} />}
-                  {s === 'suresh' && <ExpertPhone {...shared} />}
-                  {s === 'officer' && <OfficerPhone {...shared} />}
-                  {s === 'console' && <div style={{ width: 840, height: 612 }}><Console {...shared} /></div>}
+                  {s === 'lakshmi' && <LakshmiPhone {...shared} hint={lead(s)} />}
+                  {s === 'ravi' && <RaviPhone {...shared} hint={lead(s)} />}
+                  {s === 'suresh' && <ExpertPhone {...shared} hint={lead(s)} />}
+                  {s === 'officer' && <OfficerPhone {...shared} hint={lead(s)} />}
+                  {s === 'hospital' && <HospitalPhone {...shared} hint={lead(s)} />}
+                  {s === 'priya' && <PriyaPhone {...shared} hint={lead(s)} />}
+                  {s === 'meena' && <MeenaPhone {...shared} hint={lead(s)} />}
+                  {s === 'console' && <div style={{ width: 840, height: 612 }}><Console {...shared} hint={lead(s)} /></div>}
+                  {s === 'admin' && <div style={{ width: 840, height: 612 }}><AdminConsole {...shared} hint={lead(s)} /></div>}
                 </div>
               </motion.div>
             ))}
@@ -177,16 +188,46 @@ function waterLabel(phase) {
   return WATER[phase]
 }
 
-// Small label above each device, so the audience always knows whose screen it is.
+// Small label above each device, so the audience always knows whose screen it is and what kind of user they are.
 function DeviceLabel({ role }) {
   const r = ROLES[role]
   return (
-    <div style={{ height: 26, display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 6 }}>
-      <span style={{ width: 24, height: 24, borderRadius: '50%', background: r.color, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 9.5, fontWeight: 800, fontFamily: 'var(--display)' }}>
-        {r.initials || <Icon name="console" size={13} />}
-      </span>
-      <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--display)', color: 'var(--ink)' }}>{r.label}</span>
-      <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>· {r.who}</span>
+    <div style={{ height: 26, display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 6, maxWidth: WIDTH[role], whiteSpace: 'nowrap' }}>
+      <Avatar r={r} size={24} />
+      <span style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--display)', color: 'var(--ink)' }}>{r.name}</span>
+      <span style={{ fontSize: 11.5, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{r.who}</span>
+      <span style={{ marginLeft: 'auto', flex: 'none', fontSize: 9.5, fontWeight: 800, fontFamily: 'var(--display)', letterSpacing: '.06em', textTransform: 'uppercase', color: r.color, background: '#fff', boxShadow: `inset 0 0 0 1.5px ${r.color}`, borderRadius: 6, padding: '3px 6px' }}>{r.role}</span>
+    </div>
+  )
+}
+
+function Avatar({ r, size = 24 }) {
+  return (
+    <span style={{ width: size, height: size, flex: 'none', borderRadius: '50%', background: r.color, color: '#fff', display: 'grid', placeItems: 'center', fontSize: size * 0.4, fontWeight: 800, fontFamily: 'var(--display)' }}>
+      {r.initials || <Icon name="console" size={size * 0.54} />}
+    </span>
+  )
+}
+
+// Everyone who uses Handoff in this story. Whoever is acting right now is lit up.
+function CastStrip({ active }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', boxShadow: 'inset 0 0 0 1px var(--line)', borderRadius: 14, padding: '5px 12px 5px 14px' }}>
+      <div style={{ lineHeight: 1.15 }}>
+        <div className="eyebrow" style={{ fontSize: 9.5 }}>Who’s acting</div>
+        <div style={{ fontSize: 11, color: 'var(--ink-2)', fontWeight: 600 }}>9 users, 9 roles</div>
+      </div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {CAST.map((k) => {
+          const on = active.includes(k)
+          return (
+            <motion.span key={k} title={`${ROLES[k].name} · ${ROLES[k].role}`} animate={{ opacity: on ? 1 : 0.32, scale: on ? 1.12 : 1, y: on ? -1 : 0 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              style={{ borderRadius: '50%', boxShadow: on ? `0 0 0 2px #fff, 0 0 0 3.5px ${ROLES[k].color}` : 'none' }}>
+              <Avatar r={ROLES[k]} size={28} />
+            </motion.span>
+          )
+        })}
+      </div>
     </div>
   )
 }

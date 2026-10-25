@@ -57,7 +57,7 @@ function OnSite({ go, hint, auto }) {
         <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 9, lineHeight: 1.45 }}>This station has lost its senior operators. Handoff will guide you, one safe step at a time.</div>
       </div>
       <div className="card" style={{ padding: 12 }}>
-        <div className="eyebrow">Found in staff records</div>
+        <div className="row" style={{ justifyContent: 'space-between' }}><span className="eyebrow">Found in Metrowater HRMS</span><span className="chip neutral" style={{ padding: '2px 6px' }}>shared 09:08</span></div>
         <div className="row" style={{ gap: 10, marginTop: 8 }}>
           <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--blue)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 12, fontFamily: 'var(--display)' }}>RK</span>
           <div style={{ flex: 1 }}>
@@ -65,7 +65,7 @@ function OnSite({ go, hint, auto }) {
             <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Junior operator · 2 years at PS4</div>
           </div>
         </div>
-        <div className="eyebrow" style={{ marginTop: 12 }}>One-time code sent to +91 98•••• 4410</div>
+        <div className="eyebrow" style={{ marginTop: 12 }}>Aadhaar OTP sent to +91 98•••• 4410</div>
         <div className="row" style={{ gap: 8, marginTop: 7 }}>
           {['4', '8', '2', '1'].map((d, i) => (
             <motion.span key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.5 + i * 0.15 } }}
@@ -76,13 +76,13 @@ function OnSite({ go, hint, auto }) {
       <AnimatePresence>
         {state === 'done' && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="row" style={{ gap: 8, background: 'var(--green-100)', color: '#1E6E4A', borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700 }}>
-            <Icon name="shield" size={16} /> Verified. Loading your Stabilize Card…
+            <Icon name="shield" size={16} /> Verified as PS4 staff. Loading your Stabilize Card…
           </motion.div>
         )}
       </AnimatePresence>
       <div style={{ flex: 1 }} />
       <Hint on={hint && state === 'idle'} style={{ width: '100%' }}>
-        <button className="btn btn-primary" style={{ width: '100%' }} onClick={verify} disabled={state !== 'idle'}>{state === 'checking' ? 'Checking…' : 'Verify with OTP'}</button>
+        <button className="btn btn-primary" style={{ width: '100%' }} onClick={verify} disabled={state !== 'idle'}>{state === 'checking' ? 'Checking with Aadhaar…' : 'Verify with Aadhaar OTP'}</button>
       </Hint>
     </>
   )
@@ -157,7 +157,7 @@ const DRAFT = [
 function Rebuild({ go, hint, auto }) {
   const [scanned, setScanned] = useState(false)
   useLater(() => setScanned(true), 1800, auto)
-  const sources = [['doc', 'Manufacturer manual', 'VT-150 · safe start section'], ['grid', 'Maintenance records', '14 work orders'], ['gauge', 'Sensor history', '90 days of readings']]
+  const sources = [['doc', 'Manufacturer manual', 'document store'], ['grid', 'SAP PM', '14 work orders'], ['gauge', 'SCADA history', '90 days']]
   return (
     <>
       <div>
@@ -315,20 +315,20 @@ function Restart({ go, hint }) {
       </AnimatePresence>
       <div style={{ flex: 1 }} />
       <Hint on={hint && ready} style={{ width: '100%' }}>
-        <button className="btn btn-blue" style={{ width: '100%' }} disabled={!ready} onClick={() => go('flowing')}><Icon name="bolt" size={16} /> Start pump</button>
+        <button className="btn btn-blue" style={{ width: '100%' }} disabled={!ready} onClick={() => go('chlorine')}><Icon name="bolt" size={16} /> Start pump</button>
       </Hint>
     </>
   )
 }
 
 function Running({ go, hint }) {
-  const tiles = [['Flow', '210 m³/h'], ['Pressure', '3.4 bar'], ['Motor', '52 °C / 70']]
+  const tiles = [['Flow', '210 m³/h'], ['Chlorine', '0.5 mg/L'], ['Motor', '52 °C / 70']]
   return (
     <>
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ textAlign: 'center', padding: '6px 0 2px' }}>
         <div style={{ width: 54, height: 54, borderRadius: '50%', margin: '0 auto', background: 'var(--green-100)', color: 'var(--green)', display: 'grid', placeItems: 'center' }}><Icon name="check" size={28} stroke={3} /></div>
         <div className="display" style={{ fontWeight: 800, fontSize: 18, marginTop: 8 }}>Pump running</div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>Ward 34 supply restored · 14:06</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>Safe supply to Ward 34 · 15:10</div>
       </motion.div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
         {tiles.map(([l, v], i) => (
@@ -346,11 +346,11 @@ function Running({ go, hint }) {
         <Spark pts={[53, 53, 54, 56, 59, 62, 66, 70]} color="var(--blue)" w={96} h={30} />
       </div>
       <div style={{ fontSize: 12, color: 'var(--ink-2)', background: 'var(--blue-50)', borderRadius: 12, padding: '9px 11px', lineHeight: 1.4 }}>
-        Your run will verify this procedure for every station with the same pump.
+        Your run verified this procedure for every station with the same pump. Next: train a backup.
       </div>
       <div style={{ flex: 1 }} />
       <Hint on={hint} style={{ width: '100%' }}>
-        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => go('share')}>Close task</button>
+        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => go('backup')}>Close task</button>
       </Hint>
     </>
   )

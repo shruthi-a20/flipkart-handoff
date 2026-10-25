@@ -21,7 +21,7 @@ export default function ExpertPhone({ go, hint, auto }) {
   return (
     <PhoneShell headBg="var(--violet)" headInk="#fff" head={<>
       <span className="display" style={{ fontWeight: 800, fontSize: 16 }}>Handoff Expert</span>
-      <span className="chip" style={{ background: 'rgba(255,255,255,.2)', color: '#fff' }}>Review request</span>
+      <span className="chip" style={{ background: 'rgba(255,255,255,.2)', color: '#fff' }}><Icon name="lock" size={11} /> Scoped</span>
     </>}>
       <div className="screen-body" style={{ position: 'absolute', inset: 0 }}>
         <motion.div {...rise(0)} className="card" style={{ padding: 12 }}>
@@ -29,7 +29,7 @@ export default function ExpertPhone({ go, hint, auto }) {
             <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--violet-100)', color: 'var(--violet)', display: 'grid', placeItems: 'center' }}><Icon name="pump" size={18} /></span>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 13.5 }}>Pump Station 4 needs your eyes</div>
-              <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Same model you run · VT-150 · from Ravi K.</div>
+              <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Same VT-150 you run · from Ravi K.</div>
             </div>
           </div>
         </motion.div>

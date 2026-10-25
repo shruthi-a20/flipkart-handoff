@@ -21,7 +21,9 @@ export default function Console({ phase, go, hint }) {
           <AnimatePresence mode="wait">
             <motion.div key={phase} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.25 }}
               style={{ position: 'absolute', inset: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {phase === 'signals' && <Signals />}
               {phase === 'identify' && <Identify />}
+              {phase === 'chlorine' && <Chlorine />}
               {phase === 'rank' && <Rank />}
               {phase === 'share' && <Share />}
               {phase === 'closed' && <Closed />}
@@ -38,7 +40,7 @@ export default function Console({ phase, go, hint }) {
 
 function Board({ phase }) {
   const ps4 = {
-    identify: ['Assessing…', 'neutral'], rank: ['17h 57m', 'bad'], share: ['Running', 'good'], closed: ['Resolved', 'good'],
+    signals: ['New', 'blue'], identify: ['Assessing…', 'neutral'], rank: ['17h 57m', 'bad'], chlorine: ['Held', 'warn'], share: ['Running', 'good'], closed: ['Resolved', 'good'],
   }[phase]
   const rows = [
     ['drop', 'Pump Station 4', 'Ward 34 · water', ps4, true],
@@ -58,7 +60,7 @@ function Board({ phase }) {
           <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)', width: 12 }}>{i + 1}</span>
           <span style={{ width: 28, height: 28, borderRadius: 8, background: me ? 'var(--blue-100)' : '#EDF1F5', color: me ? 'var(--blue-700)' : 'var(--ink-2)', display: 'grid', placeItems: 'center' }}><Icon name={ic} size={15} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t}{me && phase === 'identify' && <span className="chip blue" style={{ marginLeft: 6, padding: '1px 6px', fontSize: 9 }}>NEW</span>}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t}{me && ['signals', 'identify'].includes(phase) && <span className="chip blue" style={{ marginLeft: 6, padding: '1px 6px', fontSize: 9 }}>NEW</span>}</div>
             <div style={{ fontSize: 10.5, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s}</div>
           </div>
           <span className={`chip ${st[1]}`} style={{ padding: '3px 7px' }}>{st[0]}</span>
@@ -137,6 +139,100 @@ function Identify() {
   )
 }
 
+const SIGNALS = [
+  ['users', 'Resident report', 'Lakshmi · 2 photos + GPS · 09:00', 'Handoff app'],
+  ['wifi', 'Water flow at zero', 'PS4 outlet main · 0 m³/h since 07:41', 'Jal Jeevan Mission IoT'],
+  ['bolt', 'Pump power dropped', 'PS4 load 0 kW since 07:40 · Feeder 3', 'Discom smart meter'],
+]
+
+function Signals() {
+  const [n, setN] = useState(0)
+  useEffect(() => { const ts = [400, 1200, 2000, 2800].map((ms, i) => setTimeout(() => setN(i + 1), ms)); return () => ts.forEach(clearTimeout) }, [])
+  return (
+    <>
+      <CaseHead status={n > 3 ? 'Case opened' : 'Merging signals'} tone="blue" />
+      <div className="eyebrow">Independent signals, same place</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {SIGNALS.map(([ic, t, s, src], i) => (
+          <motion.div key={t} initial={{ opacity: 0, x: 16 }} animate={{ opacity: n > i ? 1 : 0.25, x: n > i ? 0 : 16 }} className="row" style={{ gap: 11, padding: '10px 12px', borderRadius: 12, background: 'var(--panel)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>
+            <span style={{ width: 30, height: 30, borderRadius: 9, background: '#fff', color: 'var(--blue)', display: 'grid', placeItems: 'center' }}><Icon name={ic} size={16} /></span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>{t}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{s}</div>
+            </div>
+            <span className="chip neutral" style={{ background: '#fff', boxShadow: 'inset 0 0 0 1px var(--blue-300)', color: 'var(--blue-800)' }}>{src}</span>
+          </motion.div>
+        ))}
+      </div>
+      <AnimatePresence>
+        {n > 3 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="row" style={{ gap: 12, background: 'var(--red-100)', borderRadius: 12, padding: '11px 13px', alignItems: 'flex-start' }}>
+            <Icon name="warn" size={18} style={{ color: '#A3332C', flex: 'none', marginTop: 1 }} />
+            <div style={{ fontSize: 12.5, color: '#7E2A24', lineHeight: 1.45 }}>
+              <b>Silence + zero flow + no load = nobody is running it.</b> The pump didn’t break; its operators are gone. One case, not three tickets.
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="row" style={{ gap: 8, fontSize: 11, color: 'var(--ink-3)', marginTop: 'auto' }}>
+        <Icon name="lock" size={13} /> Read under the national emergency order · no personal data
+      </div>
+    </>
+  )
+}
+
+const CANDIDATES = [
+  ['PN', 'Priya N.', 'Retired water analyst, TWAD Board · 31 yrs', '2.1 km', 'Licence lapsed 2024', 'Best match', true],
+  ['AV', 'Arun V.', 'Lab chemist, private hospital', '6.8 km', 'Not water-certified', 'Fallback'],
+  ['SL', 'State water lab, Guindy', '1 chemist on duty', '11 km', 'Remote only', 'Supervisor'],
+]
+
+function Chlorine() {
+  const [n, setN] = useState(0)
+  useEffect(() => { const ts = [600, 1300, 1900, 2500].map((ms, i) => setTimeout(() => setN(i + 1), ms)); return () => ts.forEach(clearTimeout) }, [])
+  return (
+    <>
+      <CaseHead status="Pump running · supply held" tone="warn" />
+      <div className="row" style={{ gap: 10, alignItems: 'stretch' }}>
+        <div style={{ flex: 1, background: 'var(--red-100)', borderRadius: 14, padding: '9px 13px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#A3332C' }}>Residual chlorine · tank outlet</div>
+          <div className="mono" style={{ fontSize: 21, fontWeight: 700, color: '#A3332C' }}>0.0 mg/L</div>
+          <div style={{ fontSize: 10.5, color: '#A3332C', opacity: 0.8 }}>needs 0.2 or more before release</div>
+        </div>
+        <div style={{ flex: 1.35, background: 'var(--violet-100)', borderRadius: 14, padding: '9px 13px' }}>
+          <div className="row" style={{ gap: 6 }}><span className="chip violet" style={{ background: '#fff' }}>TIER T4 · LICENSED</span></div>
+          <div style={{ fontSize: 12.5, fontWeight: 800, marginTop: 5 }}>Chlorine dosing needs a licensed chemist</div>
+          <div style={{ fontSize: 11, color: '#4C4592' }}>Ward 34 had two. Both vanished in the Snap.</div>
+        </div>
+      </div>
+      <div style={{ borderRadius: 14, boxShadow: 'inset 0 0 0 1px var(--line)', padding: '9px 13px' }}>
+        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+          <span className="eyebrow">Finding licensed people nearby</span>
+          <span className="row" style={{ gap: 4 }}>{['e-Shram', 'DigiLocker', 'IDRN'].map((t) => <span key={t} className="chip blue" style={{ padding: '2px 6px', fontSize: 9.5 }}>{t}</span>)}</span>
+        </div>
+        {CANDIDATES.map(([ini, nm, s, km, lic, tag, best], i) => (
+          <motion.div key={nm} initial={{ opacity: 0, y: 6 }} animate={{ opacity: n > i ? 1 : 0, y: n > i ? 0 : 6 }} className="row" style={{ gap: 10, padding: '7px 8px', margin: '2px -8px', borderRadius: 10, background: best ? 'var(--blue-50)' : 'transparent', boxShadow: best ? 'inset 0 0 0 1.5px var(--blue)' : 'none' }}>
+            <span style={{ width: 28, height: 28, borderRadius: '50%', background: best ? '#8A5BA8' : '#D3DBE3', color: best ? '#fff' : 'var(--ink-2)', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, fontFamily: 'var(--display)', flex: 'none' }}>{ini}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800 }}>{nm} <span style={{ fontWeight: 500, color: 'var(--ink-3)', fontSize: 11 }}>· {km}</span></div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s}</div>
+            </div>
+            <span className={`chip ${best ? 'warn' : 'neutral'}`} style={{ padding: '2px 7px' }}>{lic}</span>
+            <span className={`chip ${best ? 'good' : 'neutral'}`} style={{ padding: '2px 7px' }}>{tag}</span>
+          </motion.div>
+        ))}
+      </div>
+      <AnimatePresence>
+        {n > 3 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ background: 'var(--amber-100)', borderRadius: 12, padding: '9px 12px', fontSize: 12, color: '#6E4A0E', lineHeight: 1.45 }}>
+            <b>Priya accepted at 14:14.</b> Her licence lapsed, so she needs a temporary emergency licence: two approvers, this task only, supervised by the state lab.
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
 function Countdown() {
   const [s, setS] = useState(17 * 3600 + 57 * 60)
   useEffect(() => { const t = setInterval(() => setS((v) => v - 1), 1000); return () => clearInterval(t) }, [])
@@ -160,14 +256,14 @@ function Rank() {
       <div style={{ borderRadius: 14, boxShadow: 'inset 0 0 0 1px var(--line)', padding: '10px 14px 6px' }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <span className="eyebrow">Dependency map</span>
-          <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>from records + how systems behaved</span>
+          <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>PM Gati Shakti layers + NDEM facilities</span>
         </div>
         <DepMap />
       </div>
       <div>
         <div className="eyebrow" style={{ marginBottom: 6 }}>Handoff’s plan</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-          {[['1', 'Make it safe', 'Anyone on site · now', 'warn'], ['2', 'Warn residents', 'Homes, hospital, schools', 'blue'], ['3', 'Rebuild the restart', 'From what was left behind', 'violet']].map(([n, t, s, k]) => (
+          {[['1', 'Make it safe', 'Anyone on site · now', 'warn'], ['2', 'Warn everyone', 'Homes, hospital, schools', 'blue'], ['3', 'Rebuild the restart', 'From what was left behind', 'violet']].map(([n, t, s, k]) => (
             <div key={n} className="row" style={{ gap: 9, background: 'var(--panel)', borderRadius: 12, padding: '8px 10px', alignItems: 'flex-start' }}>
               <span className={`chip ${k}`} style={{ padding: '2px 7px' }}>{n}</span>
               <div><div style={{ fontSize: 12.5, fontWeight: 700 }}>{t}</div><div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{s}</div></div>
@@ -219,10 +315,10 @@ function DepMap() {
 }
 
 function Share() {
-  const stations = [['Ward 12 · PS2', 'No operator left', 'bad'], ['Ward 51 · PS1', 'Suresh M. on duty', 'good'], ['Tambaram · PS3', '1 operator', 'warn']]
+  const stations = [['Ward 12 · PS2', 'No operator · case opened with fix', 'bad'], ['Ward 51 · PS1', 'Suresh M. on duty', 'good'], ['Tambaram · PS3', '1 operator · backup next', 'warn']]
   return (
     <>
-      <CaseHead status="Running · 14:06" tone="good" />
+      <CaseHead status="Safe supply · 15:10" tone="good" />
       <div className="row" style={{ gap: 10, background: 'var(--green-100)', borderRadius: 14, padding: '10px 14px' }}>
         <Icon name="star" size={18} style={{ color: 'var(--green)' }} />
         <div style={{ flex: 1 }}>
@@ -248,12 +344,12 @@ function Share() {
         <div style={{ flex: 1, background: 'var(--panel)', borderRadius: 14, padding: '10px 13px' }}>
           <div className="eyebrow">Rule of Two</div>
           <div style={{ fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>Backup: Meena S.</div>
-          <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Training with Ravi · 16:30</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Signed off by Ravi · 16:40</div>
         </div>
         <div style={{ flex: 1, background: 'var(--panel)', borderRadius: 14, padding: '10px 13px' }}>
-          <div className="eyebrow">Custody, not ownership</div>
-          <div style={{ fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>Temporary · Ravi K.</div>
-          <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Ends if the original operators return</div>
+          <div className="eyebrow">Also in the library</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>Chlorinator dosing · T4</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Verified by Priya N. · 0.5 mg/L</div>
         </div>
       </div>
     </>
@@ -261,40 +357,52 @@ function Share() {
 }
 
 function Closed() {
-  const tl = [['09:00', 'Reported'], ['09:20', 'Made safe'], ['11:00', 'Verified'], ['12:00', 'Authorized'], ['14:06', 'Running'], ['16:30', 'Backup trained']]
+  const tl = [['09:00', 'Reported'], ['09:20', 'Made safe'], ['11:00', 'Verified'], ['14:00', 'Restarted'], ['15:10', 'Safe water'], ['16:40', 'Backup']]
+  const people = [['LK', '#C27C5A', 'Reported'], ['FA', '#3C82C4', 'Prepared'], ['KS', '#4A5A6A', 'Shared data'], ['RK', '#2A5F92', 'Ran it'], ['SM', '#6C63B5', 'Verified'], ['AR', '#2E9A6A', 'Authorized'], ['PN', '#8A5BA8', 'Chlorinated'], ['MS', '#2E8A83', 'Backup']]
   return (
     <>
       <CaseHead status="Case closed" tone="good" />
-      <div style={{ borderRadius: 14, boxShadow: 'inset 0 0 0 1px var(--line)', padding: '14px 16px 12px' }}>
+      <div style={{ borderRadius: 14, boxShadow: 'inset 0 0 0 1px var(--line)', padding: '12px 16px 10px' }}>
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between' }}>
           <div style={{ position: 'absolute', left: 12, right: 12, top: 8, height: 3, background: 'var(--green-100)' }} />
           <motion.div initial={{ width: 0 }} animate={{ width: 'calc(100% - 24px)' }} transition={{ duration: 1.4 }} style={{ position: 'absolute', left: 12, top: 8, height: 3, background: 'var(--green)' }} />
           {tl.map(([t, l], i) => (
-            <motion.div key={t} initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 + i * 0.2 } }} style={{ position: 'relative', textAlign: 'center', width: 76 }}>
+            <motion.div key={t} initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.2 + i * 0.2 } }} style={{ position: 'relative', textAlign: 'center', width: 70 }}>
               <span style={{ display: 'block', width: 19, height: 19, margin: '0 auto', borderRadius: '50%', background: 'var(--green)', border: '3px solid #fff', boxShadow: '0 0 0 1.5px var(--green)' }} />
-              <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6 }}>{t}</div>
+              <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 5 }}>{t}</div>
               <div style={{ fontSize: 11.5, fontWeight: 700 }}>{l}</div>
             </motion.div>
           ))}
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {[
           ['shield', 'Made safe before harm', '20 min after the report', '17h 40m of water to spare'],
-          ['check', 'First-time success', 'Rebuilt procedure worked', 'All 6 Machine Checks passed'],
+          ['check', 'First-time success', 'Both rebuilt procedures worked', 'Every Machine Check passed'],
           ['library', 'Knowledge reused', '3 identical stations', 'Ward 12 restarts tonight'],
           ['users', 'Single-person risk', 'None left at PS4', 'Ravi + Meena trained'],
         ].map(([ic, l, v, s], i) => (
-          <motion.div key={l} {...rise(0.3 + i * 0.1)} style={{ background: 'var(--panel)', borderRadius: 14, padding: '11px 13px', display: 'flex', gap: 10 }}>
-            <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--green-100)', color: 'var(--green)', display: 'grid', placeItems: 'center', flex: 'none' }}><Icon name={ic} size={16} /></span>
+          <motion.div key={l} {...rise(0.3 + i * 0.1)} style={{ background: 'var(--panel)', borderRadius: 14, padding: '9px 12px', display: 'flex', gap: 10 }}>
+            <span style={{ width: 28, height: 28, borderRadius: 9, background: 'var(--green-100)', color: 'var(--green)', display: 'grid', placeItems: 'center', flex: 'none' }}><Icon name={ic} size={15} /></span>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>{l}</div>
-              <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 1 }}>{v}</div>
-              <div style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{s}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--ink-3)', fontWeight: 600 }}>{l}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, marginTop: 1 }}>{v}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-2)' }}>{s}</div>
             </div>
           </motion.div>
         ))}
       </div>
+      <motion.div {...rise(0.8)} style={{ borderRadius: 14, boxShadow: 'inset 0 0 0 1px var(--line)', padding: '9px 12px' }}>
+        <div className="eyebrow" style={{ marginBottom: 7 }}>Nine people, one pump · plus this control room</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          {people.map(([ini, c, l]) => (
+            <div key={ini} style={{ textAlign: 'center', width: 58 }}>
+              <span style={{ width: 28, height: 28, margin: '0 auto', borderRadius: '50%', background: c, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, fontFamily: 'var(--display)' }}>{ini}</span>
+              <div style={{ fontSize: 10, color: 'var(--ink-2)', marginTop: 3, fontWeight: 600, whiteSpace: 'nowrap' }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
     </>
   )
 }
@@ -302,16 +410,21 @@ function Closed() {
 /* ---------------- action bar ---------------- */
 
 function ActionBar({ phase, go, hint }) {
-  const [ready, setReady] = useState(phase !== 'identify')
-  useEffect(() => { if (phase !== 'identify') { setReady(true); return } setReady(false); const t = setTimeout(() => setReady(true), 2500); return () => clearTimeout(t) }, [phase])
+  const delay = { signals: 3000, identify: 2500, chlorine: 2700 }[phase]
+  const [ready, setReady] = useState(!delay)
+  useEffect(() => { if (!delay) { setReady(true); return } setReady(false); const t = setTimeout(() => setReady(true), delay); return () => clearTimeout(t) }, [phase])
   const A = {
+    signals: ['Identify equipment', 'identify', 'btn-primary', 'camera'],
     identify: ['Assess risk', 'rank', 'btn-primary', 'gauge'],
-    rank: ['Warn residents', 'warn', 'btn-warn', 'bell'],
-    share: ['Share with 3 stations', 'closed', 'btn-safe', 'send'],
+    rank: ['Send early warning', 'warn', 'btn-warn', 'bell'],
+    chlorine: ['Request emergency licence', 'licence', 'btn-primary', 'shield'],
+    share: ['Share with 3 stations', 'audit', 'btn-safe', 'send'],
   }[phase]
   const note = {
+    signals: 'Signals that point at the same place become one case.',
     identify: 'Handoff reads the photo, then checks the Shared Library.',
-    rank: 'Alerts go to homes, the hospital and schools by app, SMS and local broadcast.',
+    rank: 'Cell Broadcast via NDMA SACHET, plus direct alerts to the hospital and schools.',
+    chlorine: 'Water is released only when the chlorine sensor reads safe.',
     share: 'Each station gets the verified steps, the training clip and the safety quiz.',
     closed: 'One pump, no expert on site, no harm done.',
   }[phase]

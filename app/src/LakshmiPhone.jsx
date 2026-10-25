@@ -1,4 +1,5 @@
 // Lakshmi's phone: a resident reports the silent pump, gets an early warning, then hears it's fixed.
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Icon, Hint, PhoneShell, Logo, screen, rise } from './ui.jsx'
 import { SITE } from './flow.js'
@@ -12,7 +13,7 @@ export default function LakshmiPhone({ phase, go, hint }) {
       <AnimatePresence>
         <motion.div key={view} {...screen} className="screen-body" style={{ position: 'absolute', inset: 0 }}>
           {view === 'report' && <Report go={go} hint={hint} />}
-          {view === 'warn' && <Warn go={go} hint={hint} />}
+          {view === 'warn' && <Warn hint={hint} />}
           {view === 'restored' && <Restored />}
         </motion.div>
       </AnimatePresence>
@@ -72,40 +73,44 @@ function Report({ go, hint }) {
       </div>
       <div style={{ flex: 1 }} />
       <Hint on={hint} style={{ width: '100%' }}>
-        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => go('identify')}><Icon name="send" size={16} /> Send report</button>
+        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => go('signals')}><Icon name="send" size={16} /> Send report</button>
       </Hint>
     </>
   )
 }
 
-function Warn({ go, hint }) {
+function Warn({ hint }) {
+  const [ok, setOk] = useState(false)
   return (
     <>
-      <motion.div {...rise(0)} className="card" style={{ padding: 12, borderLeft: '4px solid var(--amber)' }}>
+      <motion.div {...rise(0)} className="row" style={{ gap: 7, background: '#2C3A47', color: '#fff', borderRadius: 12, padding: '8px 11px', fontSize: 11.5, fontWeight: 700 }}>
+        <Icon name="wifi" size={15} /> Emergency alert · Cell Broadcast
+        <span style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.7, fontWeight: 600 }}>NDMA SACHET</span>
+      </motion.div>
+      <motion.div {...rise(0.08)} className="card" style={{ padding: 12, borderLeft: '4px solid var(--amber)' }}>
         <div className="row" style={{ gap: 8 }}>
           <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--amber-100)', color: '#A86C0F', display: 'grid', placeItems: 'center' }}><Icon name="bell" size={17} /></span>
           <div style={{ flex: 1 }}>
             <div className="eyebrow" style={{ color: '#A86C0F' }}>Early warning · {SITE.ward}</div>
-            <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Handoff · District emergency ops · 09:04</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>District emergency ops · 09:04</div>
           </div>
         </div>
-        <div className="display" style={{ fontWeight: 800, fontSize: 16.5, marginTop: 10, lineHeight: 1.25 }}>Water supply may stop in about 18 hours</div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 5, lineHeight: 1.45 }}>Pump Station 4 has no operator. Store drinking water now. The hospital and schools have been told.</div>
+        <div className="display" style={{ fontWeight: 800, fontSize: 16, marginTop: 9, lineHeight: 1.25 }}>Water supply may stop in about 18 hours</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 5, lineHeight: 1.45 }}>Pump Station 4 has no operator. Store drinking water now. Also sent in Tamil, by SMS and by loudspeaker.</div>
       </motion.div>
-      <motion.div {...rise(0.15)} className="card" style={{ padding: 12 }}>
+      <motion.div {...rise(0.18)} className="card" style={{ padding: 12 }}>
         <div className="eyebrow">What to do</div>
-        {['Fill containers with drinking water', 'Check on elderly neighbours', 'Avoid using motor pumps on your tank'].map((t) => (
+        {['Fill containers with drinking water', 'Check on elderly neighbours', 'Avoid motor pumps on your tank'].map((t) => (
           <div key={t} className="row" style={{ gap: 8, fontSize: 12.5, marginTop: 7, color: 'var(--ink)' }}><Icon name="check" size={14} stroke={2.6} style={{ color: 'var(--blue)' }} />{t}</div>
         ))}
       </motion.div>
       <motion.div {...rise(0.3)} className="row" style={{ gap: 8, background: 'var(--blue-50)', borderRadius: 12, padding: '9px 11px', fontSize: 12, color: 'var(--blue-800)' }}>
-        <Icon name="info" size={15} /> Your report reached the control room. Someone is on it.
+        <Icon name="info" size={15} /> Your report reached the control room.
       </motion.div>
       <div style={{ flex: 1 }} />
-      <Hint on={hint} style={{ width: '100%' }}>
-        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => go('onsite')}>Okay, storing water</button>
+      <Hint on={hint && !ok} style={{ width: '100%' }}>
+        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setOk(true)}>{ok ? <><Icon name="check" size={15} stroke={3} /> Storing water</> : 'Okay, storing water'}</button>
       </Hint>
-      <button className="btn btn-ghost" style={{ width: '100%', minHeight: 38, fontSize: 13 }}>I need help storing water</button>
     </>
   )
 }
@@ -118,17 +123,17 @@ function Restored() {
           <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--green-100)', color: 'var(--green)', display: 'grid', placeItems: 'center' }}><Icon name="drop" size={17} /></span>
           <div style={{ flex: 1 }}>
             <div className="eyebrow" style={{ color: 'var(--green)' }}>Resolved · {SITE.ward}</div>
-            <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Handoff · 14:06</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Handoff · 15:10</div>
           </div>
         </div>
-        <div className="display" style={{ fontWeight: 800, fontSize: 17, marginTop: 10 }}>Water supply is back</div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 5, lineHeight: 1.45 }}>Pump Station 4 is running again. The supply never stopped: the tank was protected 20 minutes after your report.</div>
+        <div className="display" style={{ fontWeight: 800, fontSize: 17, marginTop: 10 }}>Water is back, and safe to drink</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 5, lineHeight: 1.45 }}>Pump Station 4 is running and the water is chlorinated. Your tap never ran dry: the tank was protected 20 minutes after your report.</div>
       </motion.div>
       <motion.div {...rise(0.2)} className="card" style={{ padding: 12 }}>
         <div className="eyebrow">Your report</div>
-        {[['09:00', 'You reported the silent pump'], ['09:20', 'Made safe by the operator on site'], ['14:06', 'Running again']].map(([t, l], i) => (
+        {[['09:00', 'You reported the silent pump'], ['09:20', 'Made safe by the operator on site'], ['14:06', 'Pump restarted'], ['15:10', 'Safe water released']].map(([t, l], i) => (
           <div key={t} className="row" style={{ gap: 9, marginTop: 8 }}>
-            <span className="dot" style={{ background: i === 2 ? 'var(--green)' : 'var(--blue)' }} />
+            <span className="dot" style={{ background: i === 3 ? 'var(--green)' : 'var(--blue)' }} />
             <span className="mono" style={{ fontSize: 11, color: 'var(--ink-3)', width: 36 }}>{t}</span>
             <span style={{ fontSize: 12.5 }}>{l}</span>
           </div>

@@ -25,16 +25,21 @@ const SUB = [-27, -10]        // substation
 const LAKSHMI = [-2, 8]       // Lakshmi's house (faces the road)
 const LK = [-6.4, 3.9]        // where Lakshmi stands
 const HOSPITAL = [25, 10.5]
+const SHED = [14.6, -10.6]    // chlorination shed beside the tank
+const SENSOR = [11.6, -4.6]   // chlorine + flow sensor on the outlet main
+const HQ = [-34, 21]          // Metrowater headquarters, where Karthik works
 const FAR = [[-50, -30], [52, -28], [40, 34]]   // identical pump stations elsewhere
-const NORTH = [-46, -38, 18, 30, 40, 50]
+const NORTH = [-46, -38, 23, 31, 40, 50]
 const SOUTH = [-44, -34, -24, -14, 8, 40, 48]
 
 // Camera shots, one per step: [position], [look-at].
 const SHOTS = {
   report: { pos: [-9.6, 3.5, 9.2], look: [0.6, 1.9, -8] },
+  signals: { pos: [1, 30, 27], look: [1.5, 0, -4] },
   identify: { pos: [-6.8, 3.2, -1.6], look: [-1.6, 1.8, -7.2] },
   rank: { pos: [3, 74, 66], look: [2, 0, -2] },
-  warn: { pos: [2, 62, 62], look: [2, 0, 0] },
+  warn: { pos: [2, 58, 58], look: [2, 0, 0] },
+  access: { pos: [-21, 66, 64], look: [-21, 0, 7] },
   onsite: { pos: [2.6, 2.3, -3.2], look: [-0.8, 1.6, -6.2] },
   stabilize: { pos: [7.8, 2.5, -3.6], look: [4.4, 1.2, -7.2] },
   rebuild: { pos: [4.5, 7.5, 15], look: [0, 6, -7] },
@@ -42,18 +47,23 @@ const SHOTS = {
   train: { pos: [2.2, 2.2, -3.3], look: [-0.8, 1.7, -6.2] },
   authorize: { pos: [-3.0, 2.6, -2.8], look: [-0.4, 1.9, -6.2] },
   restart: { pos: [-5.6, 2.6, -3.4], look: [-2.2, 1.4, -6.8] },
+  chlorine: { pos: [21, 9, 6], look: [11.5, 2, -8] },
+  licence: { pos: [18, 4.6, 11], look: [9.5, 1.8, -1.5] },
+  dose: { pos: [19.5, 4, -1], look: [12.8, 1.4, -8.5] },
   flowing: { pos: [-18, 6.5, 7], look: [1, 1.4, -2] },
-  share: { pos: [0, 116, 104], look: [0, 0, 2] },
-  closed: { pos: [12, 6.5, 9.5], look: [-0.5, 2.2, -7] },
+  backup: { pos: [-5.2, 2.7, -2.9], look: [-1.6, 1.4, -6.6] },
+  share: { pos: [-2, 128, 116], look: [-2, 0, 2] },
+  audit: { pos: [6, 30, 34], look: [3, 0, -5] },
+  closed: { pos: [13, 6.8, 9.5], look: [1.5, 2.2, -7] },
 }
 
 // Fraction of the storage tank that's full, per step.
-const LEVEL = { report: 0.6, identify: 0.59, rank: 0.58, warn: 0.57, onsite: 0.55, stabilize: 0.53, flowing: 0.7, share: 0.8, closed: 0.86 }
+const LEVEL = { report: 0.6, signals: 0.6, identify: 0.59, rank: 0.58, warn: 0.57, access: 0.56, onsite: 0.55, stabilize: 0.53, chlorine: 0.6, licence: 0.64, dose: 0.68, flowing: 0.7, backup: 0.76, share: 0.8, audit: 0.84, closed: 0.86 }
 const level = (p) => LEVEL[p] ?? (after(p, 'flowing') ? 0.7 : 0.53)
 
 // Status lamp on the pump's control cabinet.
 function lampState(p, t) {
-  if (after(p, 'flowing')) return 'green'
+  if (after(p, 'chlorine')) return 'green'
   if (after(p, 'stabilize')) return 'amber'
   return 'red'
 }
@@ -88,6 +98,8 @@ function World({ phase }) {
       <Substation />
       <PowerLine phase={phase} since={since} />
       <Hospital />
+      <ChlorineShed phase={phase} />
+      <Headquarters />
       {FAR.map((f, i) => <MiniStation key={i} at={f} lit={after(phase, 'share')} />)}
       <Trees />
       <Cast phase={phase} since={since} />
@@ -189,7 +201,7 @@ function PumpHouse({ phase, since }) {
       const goal = phase === 'stabilize' ? Math.min(1, since() / 2.4) * Math.PI * 3 : after(phase, 'stabilize') ? Math.PI * 3 : 0
       wheel.current.rotation.z = THREE.MathUtils.damp(wheel.current.rotation.z, goal, 3, dt)
     }
-    const running = after(phase, 'flowing')
+    const running = after(phase, 'chlorine')
     if (rotor.current && running) rotor.current.rotation.y += dt * 9
   })
   return (
@@ -287,7 +299,7 @@ function Substation() {
 }
 
 // Poles along the north pavement: substation → pump station → across to the hospital.
-const POLES = [[-22, -4.9], [-12, -4.9], [-6.5, -4.9], [8, -4.9], [18, -4.9], [24, 4.9]]
+const POLES = [[-22, -4.9], [-12, -4.9], [-6.5, -4.9], [8, -4.9], [20.5, -4.9], [24, 4.9]]
 function PowerLine({ phase, since }) {
   const [tone, setTone] = useState('#59636E')
   useFrame(() => {
@@ -345,13 +357,68 @@ function MiniStation({ at, lit }) {
 }
 
 function Trees() {
-  const spots = useMemo(() => [[-34, -4.8], [-18, -4.9], [14, -5], [34, -4.9], [46, -4.9], [-40, 4.9], [-30, 4.9], [-19, 4.9], [4, 4.9], [12, 4.9], [34, 4.9], [44, 4.9], [-8, -14], [16, -15], [-20, -16], [30, 18], [-14, 15]], [])
+  const spots = useMemo(() => [[-34, -4.8], [-18, -4.9], [34, -4.9], [46, -4.9], [-40, 4.9], [-30, 4.9], [-19, 4.9], [4, 4.9], [34, 4.9], [44, 4.9], [-8, -14], [16, -15], [-20, -16], [30, 18], [-14, 15]], [])
   return spots.map(([x, z], i) => (
     <group key={i} position={[x, 0, z]}>
       <mesh position={[0, 0.8, 0]} castShadow><cylinderGeometry args={[0.12, 0.16, 1.6, 6]} /><meshStandardMaterial color="#8C7462" /></mesh>
       <mesh position={[0, 2.1, 0]} castShadow><icosahedronGeometry args={[1.0, 0]} /><meshStandardMaterial color={i % 2 ? '#8FB38A' : '#A3C29B'} flatShading /></mesh>
     </group>
   ))
+}
+
+// Chlorination shed: chlorine tonners on cradles, a dosing line to the outlet main, and the sensor lamp.
+function ChlorineShed({ phase }) {
+  const lamp = useRef()
+  const col = useMemo(() => ({ red: new THREE.Color(C.red), amber: new THREE.Color(C.amber), green: new THREE.Color(C.green), off: new THREE.Color('#8C98A4') }), [])
+  const start = useRef(0)
+  useEffect(() => { start.current = performance.now() }, [phase])
+  useFrame((s) => {
+    if (!lamp.current) return
+    const t = (performance.now() - start.current) / 1000
+    let k = 'off'
+    if (['chlorine', 'licence'].includes(phase)) k = 'red'
+    if (phase === 'dose') k = t > 2.6 ? 'green' : 'amber'
+    if (after(phase, 'flowing')) k = 'green'
+    lamp.current.material.color.copy(col[k]); lamp.current.material.emissive.copy(col[k])
+    lamp.current.material.emissiveIntensity = k === 'red' ? 0.6 + Math.abs(Math.sin(s.clock.getElapsedTime() * 4)) * 1.2 : k === 'off' ? 0 : 1.1
+  })
+  return (
+    <group>
+      <group position={[SHED[0], 0, SHED[1]]}>
+        <mesh position={[0, 1.4, 0]} castShadow receiveShadow><boxGeometry args={[3.4, 2.8, 3]} /><meshStandardMaterial color="#EEF0F2" flatShading /></mesh>
+        <mesh position={[0, 2.9, 0]} castShadow><boxGeometry args={[3.8, 0.2, 3.4]} /><meshStandardMaterial color="#9AA7B5" /></mesh>
+        <mesh position={[-0.6, 1.0, 1.51]}><boxGeometry args={[1.1, 2.0, 0.05]} /><meshStandardMaterial color="#C9A23A" /></mesh>
+        <SignText position={[0.2, 2.45, 1.53]} w={3.0} h={0.42} text="CHLORINATION" bg="#6C63B5" />
+        <mesh position={[0.95, 1.15, 1.53]}><boxGeometry args={[0.6, 0.6, 0.03]} /><meshStandardMaterial color="#F2C94C" /></mesh>
+        {[-0.5, 0.5].map((z) => (
+          <group key={z} position={[2.5, 0, z]}>
+            <mesh position={[0, 0.55, 0]} rotation-z={Math.PI / 2} castShadow><cylinderGeometry args={[0.38, 0.38, 1.8, 16]} /><meshStandardMaterial color="#E6C34A" /></mesh>
+            {[-0.6, 0.6].map((x) => <mesh key={x} position={[x, 0.2, 0]}><boxGeometry args={[0.14, 0.4, 0.8]} /><meshStandardMaterial color={C.steelDark} /></mesh>)}
+          </group>
+        ))}
+      </group>
+      {/* dosing line from the shed to the outlet main */}
+      <mesh position={[(SHED[0] - 1.7 + 11.6) / 2, 0.55, SHED[1] + 0.8]} rotation-z={Math.PI / 2}><cylinderGeometry args={[0.06, 0.06, SHED[0] - 1.7 - 11.6, 8]} /><meshStandardMaterial color="#B57BD6" /></mesh>
+      {/* chlorine and flow sensor on the main */}
+      <group position={[SENSOR[0], 0, SENSOR[1]]}>
+        <mesh position={[0.45, 0.7, 0]} castShadow><boxGeometry args={[0.4, 0.55, 0.4]} /><meshStandardMaterial color="#D6DCE2" /></mesh>
+        <mesh ref={lamp} position={[0.45, 1.1, 0]}><sphereGeometry args={[0.11, 12, 10]} /><meshStandardMaterial color="#8C98A4" emissive="#8C98A4" /></mesh>
+      </group>
+    </group>
+  )
+}
+
+// Metrowater headquarters, a few streets away. Karthik grants data access from here.
+function Headquarters() {
+  return (
+    <group position={[HQ[0], 0, HQ[1]]}>
+      <mesh position={[0, 4.5, 0]} castShadow receiveShadow><boxGeometry args={[10, 9, 7]} /><meshStandardMaterial color="#E8EDF2" flatShading /></mesh>
+      {[1.6, 4.4, 7.2].map((y) => <mesh key={y} position={[0, y, 3.52]}><boxGeometry args={[9.2, 1.3, 0.05]} /><meshStandardMaterial color="#9FB8CF" emissive="#9FB8CF" emissiveIntensity={0.12} /></mesh>)}
+      <mesh position={[0, 9.15, 0]}><boxGeometry args={[10.4, 0.3, 7.4]} /><meshStandardMaterial color="#AAB6C2" /></mesh>
+      <mesh position={[2.6, 10.2, -1]}><boxGeometry args={[2.2, 1.8, 2.2]} /><meshStandardMaterial color="#C6D3DF" /></mesh>
+      <SignText position={[0, 9.15, 3.72]} w={6.4} h={0.5} text="CHENNAI METROWATER" bg="#2A5F92" />
+    </group>
+  )
 }
 
 /* ---------------- characters ---------------- */
@@ -414,30 +481,44 @@ function Person({ position, rotation = 0, skin, top, bottom, hair, pose = 'idle'
 const RAVI = { skin: '#B98462', top: '#7FA9D1', bottom: '#2E3D4D', hair: C.hair, hat: '#F2F4F6' }
 const LAKSHMI_P = { skin: '#C99273', top: '#E7D3C3', bottom: '#2E8A83', hair: C.hair, bun: true, saree: true }
 const MEENA = { skin: '#C08C6A', top: '#9BBBD8', bottom: '#2E3D4D', hair: C.hair, bun: true, hat: '#F2F4F6' }
+const PRIYA = { skin: '#B7805F', top: '#EADCF2', bottom: '#7B5EA7', hair: '#B5B5B5', bun: true, saree: true }
 
 // Who stands where in each step.
 function Cast({ phase: p }) {
-  const lakshmiPose = p === 'report' ? 'phone' : p === 'warn' ? 'phone' : p === 'flowing' ? 'happy' : 'idle'
-  const lakshmiAt = ['report', 'warn', 'flowing', 'closed', 'rank', 'identify'].includes(p)
+  const lakshmiPose = ['report', 'warn'].includes(p) ? 'phone' : p === 'flowing' ? 'happy' : 'idle'
+  const lakshmiAt = ['report', 'signals', 'identify', 'rank', 'warn', 'flowing', 'audit', 'closed'].includes(p)
   let ravi = null
   if (['onsite'].includes(p)) ravi = { at: [-0.6, 0, -5.8], rot: 0.1, pose: 'worried' }
   if (p === 'stabilize') ravi = { at: [VALVE[0], 0, -6.6], rot: Math.PI, pose: 'turn' }
-  if (p === 'rebuild') ravi = { at: [-0.6, 0, -5.8], rot: 0.2, pose: 'phone' }
-  if (['validate', 'train', 'authorize'].includes(p)) ravi = { at: [-0.6, 0, -5.8], rot: 0.15, pose: 'phone' }
+  if (['rebuild', 'validate', 'train', 'authorize'].includes(p)) ravi = { at: [-0.6, 0, -5.8], rot: 0.15, pose: 'phone' }
   if (p === 'restart') ravi = { at: [PANEL[0], 0, -5.45], rot: Math.PI, pose: 'turn' }
+  if (['chlorine', 'licence'].includes(p)) ravi = { at: [9.6, 0, -6.2], rot: 0.5, pose: 'phone' }
+  if (p === 'dose') ravi = { at: [12.4, 0, -7.2], rot: -0.6, pose: 'idle' }
   if (p === 'flowing') ravi = { at: [-0.6, 0, -5.6], rot: 0.2, pose: 'happy' }
-  if (['share', 'closed'].includes(p)) ravi = { at: [-1.2, 0, -5.6], rot: 0.25, pose: 'wave' }
+  if (p === 'backup') ravi = { at: [PANEL[0] + 1.25, 0, -5.2], rot: -2.2, pose: 'point' }
+  if (['share', 'audit', 'closed'].includes(p)) ravi = { at: [-1.2, 0, -5.6], rot: 0.25, pose: 'wave' }
+  let priya = null
+  if (p === 'licence') priya = { at: [10.4, 0, 2.0], rot: -0.9, pose: 'phone' }
+  if (p === 'dose') priya = { at: [SHED[0] - 0.6, 0, SHED[1] + 2.4], rot: Math.PI, pose: 'turn' }
+  if (after(p, 'flowing') && p !== 'flowing') priya = { at: [13.2, 0, -7.0], rot: 0.4, pose: 'idle' }
+  let meena = null
+  if (p === 'backup') meena = { at: [PANEL[0], 0, -5.45], rot: Math.PI, pose: 'turn' }
+  if (['share', 'audit', 'closed'].includes(p)) meena = { at: [0.4, 0, -5.5], rot: -0.2, pose: 'idle' }
   return (
     <>
       {lakshmiAt && <Person position={[LK[0], 0, LK[1]]} rotation={Math.PI} {...LAKSHMI_P} pose={lakshmiPose} />}
       {ravi && <Person position={ravi.at} rotation={ravi.rot} {...RAVI} pose={ravi.pose} />}
-      {['share', 'closed'].includes(p) && <Person position={[0.4, 0, -5.5]} rotation={-0.2} {...MEENA} pose="idle" />}
+      {meena && <Person position={meena.at} rotation={meena.rot} {...MEENA} pose={meena.pose} />}
+      {priya && <Person position={priya.at} rotation={priya.rot} {...PRIYA} pose={priya.pose} />}
 
       {p === 'report' && <Bubble at={[LK[0], 2.1, LK[1]]} delay={500}>“The pump’s been silent since dawn.”</Bubble>}
       {p === 'onsite' && <Bubble at={[-0.6, 2.5, -5.8]} tone="warn" delay={400}>“Both my seniors are gone. I’ve never run it alone.”</Bubble>}
       {p === 'stabilize' && <Bubble at={[VALVE[0], 2.6, -6.6]} tone="good" delay={2700}>“Valve closed. The level’s holding.”</Bubble>}
       {p === 'train' && <Bubble at={[-0.6, 2.5, -5.8]} delay={400}>“Inlet first, then the pump. Got it.”</Bubble>}
+      {p === 'licence' && <Bubble at={[10.4, 2.2, 2.0]} delay={500}>“I haven’t done this since I retired. I can.”</Bubble>}
+      {p === 'dose' && <Bubble at={[SHED[0] - 0.6, 2.4, SHED[1] + 2.4]} tone="good" delay={3600}>“0.5. It’s safe to drink.”</Bubble>}
       {p === 'flowing' && <Bubble at={[LK[0], 2.5, LK[1]]} tone="good" delay={900}>“The taps are running!”</Bubble>}
+      {p === 'backup' && <Bubble at={[PANEL[0] + 1.25, 2.5, -5.2]} delay={500}>“You run it. I’ll just watch.”</Bubble>}
       {p === 'closed' && <Bubble at={[-0.4, 2.6, -5.6]} tone="good" delay={500}>“Now two of us know how.”</Bubble>}
     </>
   )
@@ -518,7 +599,7 @@ function Flow({ path, n = 26, speed = 0.18 }) {
 // Knowledge sources flying in from around the station and merging above it.
 function Sources() {
   const items = [
-    ['Manufacturer manual', [-6, 6.5, -4], 0], ['Maintenance records', [6, 7, -4], 500], ['Sensor history', [-4, 8.6, -8], 1000], ['Logbook p. 112', [5, 9, -9], 1600],
+    ['Manufacturer manual', [-6, 6.5, -4], 0], ['SAP PM · 14 work orders', [6, 7, -4], 500], ['SCADA · 90 days', [-4, 8.6, -8], 1000], ['Logbook p. 112', [5, 9, -9], 1600],
   ]
   return (
     <>
@@ -531,10 +612,17 @@ function Sources() {
 function Effects({ phase: p, since }) {
   return (
     <>
-      {['report', 'identify'].includes(p) && <Ring at={[PUMP[0], PUMP[1]]} max={5} color={C.red} period={1.8} y={0.08} />}
+      {['report', 'signals', 'identify'].includes(p) && <Ring at={[PUMP[0], PUMP[1]]} max={5} color={C.red} period={1.8} y={0.08} />}
       {p === 'report' && <>
         <Tag at={[PUMP[0], 6.6, PUMP[1]]} tone="red">Silent since 07:40 · no operator</Tag>
         <Ring at={LK} max={1.4} color={C.blue} period={1.4} y={2.0} />
+      </>}
+      {p === 'signals' && <>
+        <Tag at={[LK[0], 3.4, LK[1]]} tone="blue" delay={300}>① Resident report · 09:00</Tag>
+        <Tag at={[SENSOR[0] - 1, 3.0, SENSOR[1]]} tone="red" delay={1100}>② Flow sensor · 0 m³/h</Tag>
+        <Tag at={[-6.5, 7.4, -4.9]} tone="amber" delay={1900}>③ Smart meter · 0 kW</Tag>
+        <Tag at={[PUMP[0], 7.2, PUMP[1]]} tone="light" delay={2800} size={15}>One case: nobody is running it</Tag>
+        <Ring at={[SENSOR[0], SENSOR[1]]} max={2.5} color={C.red} period={1.6} y={0.1} />
       </>}
       {p === 'identify' && <>
         <Tag at={[PANEL[0], 2.9, PANEL[1]]} tone="blue">Nameplate read · VT-150 vertical turbine pump</Tag>
@@ -542,17 +630,26 @@ function Effects({ phase: p, since }) {
       {p === 'rank' && <>
         <Tag at={[TANK[0], 8.4, TANK[1]]} tone="red" size={15}>18 h of water left</Tag>
         <Tag at={[HOSPITAL[0], 10.6, HOSPITAL[1]]} tone="light" size={13}>Hospital</Tag>
-        <Tag at={[SUB[0] + 4, 6.6, SUB[1]]} tone="amber" size={13}>Feeder 3</Tag>
+        <Tag at={[SUB[0] + 4, 6.6, SUB[1]]} tone="amber" size={13}>Feeder 3 · also feeds the hospital</Tag>
         <Arc from={PUMP} to={[HOSPITAL[0], HOSPITAL[1]]} color={C.blue} h={12} />
         <Arc from={PUMP} to={[-24, 8]} color={C.blue} h={10} i={1} y1={3} />
         <Arc from={PUMP} to={[40, 8]} color={C.blue} h={11} i={2} y1={3} />
+        <Arc from={SUB} to={[HOSPITAL[0], HOSPITAL[1]]} color={C.amber} h={16} i={1} y0={3} y1={6} width={2.4} speed={0.3} />
         <Ring at={PUMP} max={10} color={C.red} />
       </>}
       {p === 'warn' && <>
         <Ring at={PUMP} max={52} color={C.blue} period={3} />
         <Ring at={[PUMP[0] + 0.01, PUMP[1]]} max={52} color={C.blue} period={3.6} />
         {[[-24, 12], [-14, 12], [8, 12], [40, 12], [48, 12]].map(([x, z], i) => <Tag key={x} at={[x, 5.2, z - 4]} tone="amber" delay={300 + i * 250} size={12}>Store water</Tag>)}
-        <Tag at={[HOSPITAL[0], 10.6, HOSPITAL[1]]} tone="amber" delay={600}>Hospital alerted · switch to reserve</Tag>
+        <Tag at={[HOSPITAL[0], 10.6, HOSPITAL[1]]} tone="amber" delay={600}>Hospital: switch to reserve water</Tag>
+      </>}
+      {p === 'access' && <>
+        <Arc from={PUMP} to={HQ} color={C.blue} h={18} y0={5} y1={10} width={3} speed={0.45} />
+        <Arc from={TANK} to={HQ} color={C.blue} h={20} i={1} y0={5} y1={10} width={2} speed={0.45} />
+        <Tag at={[HQ[0], 14.5, HQ[1]]} tone="light" size={14} delay={200}>Metrowater HQ · Karthik, IT manager</Tag>
+        <Tag at={[HQ[0], 12.3, HQ[1]]} tone="amber" size={12} delay={700}>Admin vanished · rights pass by succession</Tag>
+        <Tag at={[PUMP[0], 8.2, PUMP[1]]} tone="blue" size={12} delay={1300}>SCADA · SAP PM · HRMS · manuals</Tag>
+        <Tag at={[PUMP[0], 6.2, PUMP[1]]} tone="green" size={12} delay={2000}>Read-only · expires with the order</Tag>
       </>}
       {p === 'stabilize' && <Tag at={[TANK[0], 6.4, TANK[1]]} tone="green" delay={2700}>Outlet V2 closed · level holding</Tag>}
       {p === 'rebuild' && <Sources />}
@@ -571,18 +668,44 @@ function Effects({ phase: p, since }) {
         <Tag at={[-6.5, 7.4, -4.9]} tone="amber" delay={300}>Cascade check · Feeder 3 load 64% · OK</Tag>
         <RestartTag since={since} />
       </>}
-      {['flowing', 'share', 'closed'].includes(p) && <><Flow path={FLOW_PATH} /><Flow path={FLOW_PATH2} n={10} speed={0.3} /></>}
-      {p === 'flowing' && <Tag at={[TANK[0], 6.6, TANK[1]]} tone="green">Running · 210 m³/h</Tag>}
+      {after(p, 'chlorine') && !after(p, 'flowing') && <Flow path={[[PUMP[0] + 3.6, 0.9, -7.4], [TANK[0] - 2.6, 0.9, -7.4]]} n={5} speed={0.5} />}
+      {p === 'chlorine' && <>
+        <Tag at={[TANK[0], 6.6, TANK[1]]} tone="green" size={13}>Pump running · tank filling</Tag>
+        <Tag at={[SENSOR[0] + 0.4, 2.6, SENSOR[1]]} tone="red" delay={600}>Chlorine 0.0 mg/L · supply held</Tag>
+        <Tag at={[SHED[0] - 1.5, 4.6, SHED[1]]} tone="violet" delay={1400}>Tier T4 · no licensed chemist</Tag>
+        <Ring at={SHED} max={4} color={C.amber} period={1.8} y={0.08} />
+      </>}
+      {p === 'licence' && <>
+        <Tag at={[10.4, 3.6, 2.0]} tone="violet" delay={200}>Priya N. · retired water chemist · 2.1 km</Tag>
+        <Tag at={[SHED[0] - 4.5, 4.8, SHED[1]]} tone="amber" delay={1100}>Emergency licence · 2 approvers</Tag>
+      </>}
+      {p === 'dose' && <ChlorineTag />}
+      {after(p, 'flowing') && <><Flow path={FLOW_PATH} /><Flow path={FLOW_PATH2} n={10} speed={0.3} /></>}
+      {p === 'flowing' && <Tag at={[TANK[0], 6.6, TANK[1]]} tone="green">Safe supply · 210 m³/h · 0.5 mg/L</Tag>}
+      {p === 'backup' && <Tag at={[PANEL[0], 3.2, PANEL[1]]} tone="green" delay={300}>Rule of Two · Meena’s shadow run</Tag>}
       {p === 'share' && FAR.map((f, i) => (
         <group key={i}>
           <Arc from={PUMP} to={f} color={C.green} h={30} i={i} y0={5} y1={5} width={4} speed={0.4} />
-          <Tag at={[f[0], 9, f[1]]} tone="green" delay={900 + i * 400}>{['Ward 12', 'Ward 51', 'Tambaram'][i]} ✓</Tag>
+          <Tag at={[f[0], 9, f[1]]} tone="green" delay={900 + i * 400}>{['Ward 12 · fix attached', 'Ward 51', 'Tambaram'][i]} ✓</Tag>
         </group>
       ))}
-      {p === 'share' && <Tag at={[PUMP[0], 9, PUMP[1]]} tone="blue" size={13}>PS4 procedure</Tag>}
-      {p === 'closed' && <Tag at={[PUMP[0], 7, PUMP[1]]} tone="green" size={15}>Safe · running · 2 trained operators</Tag>}
+      {p === 'share' && <Tag at={[PUMP[0], 9, PUMP[1]]} tone="blue" size={13}>PS4 procedures</Tag>}
+      {p === 'audit' && <>
+        <Tag at={[PUMP[0] - 2, 7.4, PUMP[1]]} tone="light" size={13} delay={200}>Custody: Ravi K. · temporary</Tag>
+        <Tag at={[PUMP[0] - 2, 5.6, PUMP[1]]} tone="amber" size={12} delay={700}>Authority ends tomorrow 12:00</Tag>
+        <Tag at={[SHED[0], 5.4, SHED[1]]} tone="amber" size={12} delay={1200}>Licence ends 22:00</Tag>
+        <Tag at={[LK[0], 3.6, LK[1]]} tone="light" size={12} delay={1700}>Every action logged</Tag>
+      </>}
+      {p === 'closed' && <Tag at={[PUMP[0], 7, PUMP[1]]} tone="green" size={15}>Safe water · 2 trained operators</Tag>}
     </>
   )
+}
+
+function ChlorineTag() {
+  const [k, setK] = useState(0)
+  useEffect(() => { const ts = [1200, 2600].map((ms, i) => setTimeout(() => setK(i + 1), ms)); return () => ts.forEach(clearTimeout) }, [])
+  const text = ['Chlorine 0.0 mg/L · dosing', 'Chlorine 0.2 mg/L · rising', 'Chlorine 0.5 mg/L ✓ safe to drink'][k]
+  return <Tag at={[SENSOR[0] + 0.4, 2.6, SENSOR[1]]} tone={k === 2 ? 'green' : 'amber'}>{text}</Tag>
 }
 
 function RestartTag({ since }) {
